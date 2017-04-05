@@ -45,6 +45,8 @@ def configure(conf):
         Logs.error ("    PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH ./waf configure")
         conf.fatal ("")
 
+    conf.env.append_value('CXXFLAGS', ['-std=c++11', '-stdlib=libc++'])
+
     if conf.options.debug:
         conf.define ('NS3_LOG_ENABLE', 1)
         conf.define ('NS3_ASSERT_ENABLE', 1)

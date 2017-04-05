@@ -23,17 +23,16 @@
 #include "ns3/log.h"
 #include "ns3/ndnSIM-module.h"
 #include "ns3/point-to-point-module.h"
-#include "ns3/random-variable.h"
+#include "ns3/random-variable-stream.h"
 
 #include <boost/foreach.hpp>
 
-#include "ns3/ndnSIM/plugins/topology/rocketfuel-map-reader.h"
+#include "ns3/ndnSIM/utils/topology/rocketfuel-map-reader.hpp"
 
 using namespace ns3;
 using namespace std;
 
-int main (int argc, char**argv)
-{
+int main(int argc, char** argv) {
   string topology = "";
   string output_prefix = "";
   uint32_t run = 0;
@@ -43,103 +42,108 @@ int main (int argc, char**argv)
   bool connectBackbones = false;
 
   CommandLine cmd;
-  cmd.AddValue ("topology", "Topology filename (.ccn)", topology);
-  cmd.AddValue ("output",   "Prefix for output files", output_prefix);
-  cmd.AddValue ("run", "Run for ranged parameter randomization", run);
-  cmd.AddValue ("clients", "Maximum degree of client nodes", clientNodeDegrees);
-  cmd.AddValue ("buildGraph", "Whether or not build a graphviz graph (using neato)", buildGraphvizGraph);
-  cmd.AddValue ("keepLargestComponent", "Keep only largest connected component of the network graph", keepLargestComponent);
-  cmd.AddValue ("connectBackbones", "Make sure that ``backbone'' nodes are connected (adding extra links)", connectBackbones);
-  cmd.Parse (argc, argv);
+  cmd.AddValue("topology", "Topology filename (.ccn)", topology);
+  cmd.AddValue("output", "Prefix for output files", output_prefix);
+  cmd.AddValue("run", "Run for ranged parameter randomization", run);
+  cmd.AddValue("clients", "Maximum degree of client nodes", clientNodeDegrees);
+  cmd.AddValue("buildGraph",
+               "Whether or not build a graphviz graph (using neato)",
+               buildGraphvizGraph);
+  cmd.AddValue("keepLargestComponent",
+               "Keep only largest connected component of the network graph",
+               keepLargestComponent);
+  cmd.AddValue(
+      "connectBackbones",
+      "Make sure that ``backbone'' nodes are connected (adding extra links)",
+      connectBackbones);
+  cmd.Parse(argc, argv);
 
   /**
    * @todo Make range parameters as command line arguments
    */
 
-  if (topology == "")
-    {
-      cerr << "ERROR: topology needs to be specified" << endl;
-      cerr << endl;
+  if (topology == "") {
+    cerr << "ERROR: topology needs to be specified" << endl;
+    cerr << endl;
 
-      cerr << cmd;
-      return 1;
-    }
+    cerr << cmd;
+    return 1;
+  }
 
-  if (output_prefix == "")
-    {
-      cerr << "ERROR: output needs to be specified" << endl;
-      cerr << endl;
+  if (output_prefix == "") {
+    cerr << "ERROR: output needs to be specified" << endl;
+    cerr << endl;
 
-      cerr << cmd;
-      return 1;
-    }
+    cerr << cmd;
+    return 1;
+  }
 
-  if (run == 0)
-    {
-      cerr << "ERROR: run needs to be specified" << endl;
-      cerr << endl;
+  if (run == 0) {
+    cerr << "ERROR: run needs to be specified" << endl;
+    cerr << endl;
 
-      cerr << cmd;
-      return 1;
-    }
+    cerr << cmd;
+    return 1;
+  }
 
-  if (clientNodeDegrees < 0)
-    {
-      cerr << "ERROR: clients needs to be specified" << endl;
-      cerr << endl;
+  if (clientNodeDegrees < 0) {
+    cerr << "ERROR: clients needs to be specified" << endl;
+    cerr << endl;
 
-      cerr << cmd;
-      return 1;
-    }
+    cerr << cmd;
+    return 1;
+  }
 
-  // different run will yield topology with different bandwidth/delay assignments
-  Config::SetGlobal ("RngRun", IntegerValue (run));
-  GlobalValue::Bind ("SimulatorImplementationType", StringValue ("ns3::VisualSimulatorImpl"));
+  // different run will yield topology with different bandwidth/delay
+  // assignments
+  Config::SetGlobal("RngRun", IntegerValue(run));
+  GlobalValue::Bind("SimulatorImplementationType",
+                    StringValue("ns3::VisualSimulatorImpl"));
 
   string input = topology;
-  string output = output_prefix+"-conv-annotated.txt";
-  string graph  = output_prefix+"-conv-annotated.dot";
-  string graph_pdf  = output_prefix+"-conv-annotated.pdf";
+  string output = output_prefix + "-conv-annotated.txt";
+  string graph = output_prefix + "-conv-annotated.dot";
+  string graph_pdf = output_prefix + "-conv-annotated.pdf";
 
   RocketfuelParams params;
   params.clientNodeDegrees = clientNodeDegrees;
-  params.averageRtt = 0.25; // 250ms
-  //parameters for links Backbone<->Backbone
+  params.averageRtt = 0.25;  // 250ms
+  // parameters for links Backbone<->Backbone
   params.minb2bBandwidth = "40Mbps";
   params.minb2bDelay = "5ms";
 
   params.maxb2bBandwidth = "100Mbps";
   params.maxb2bDelay = "10ms";
 
-  //parameters for links Backbone<->Gateway and Gateway <-> Gateway
+  // parameters for links Backbone<->Gateway and Gateway <-> Gateway
   params.minb2gBandwidth = "10Mbps";
   params.minb2gDelay = "5ms";
 
   params.maxb2gBandwidth = "20Mbps";
   params.maxb2gDelay = "10ms";
 
-  //parameters for links Gateway <-> Customer
-  params.ming2cBandwidth ="1Mbps";
+  // parameters for links Gateway <-> Customer
+  params.ming2cBandwidth = "1Mbps";
   params.ming2cDelay = "70ms";
 
-  params.maxg2cBandwidth ="3Mbps";
+  params.maxg2cBandwidth = "3Mbps";
   params.maxg2cDelay = "10ms";
 
-  RocketfuelMapReader topologyReader ("/", 1.0);
-  topologyReader.SetFileName (input);
-  NodeContainer nodes = topologyReader.Read (params, keepLargestComponent, connectBackbones);
+  RocketfuelMapReader topologyReader("/", 1.0);
+  topologyReader.SetFileName(input);
+  NodeContainer nodes =
+      topologyReader.Read(params, keepLargestComponent, connectBackbones);
   NodeContainer backboneRouters = topologyReader.GetBackboneRouters();
   NodeContainer gatewayRouters = topologyReader.GetGatewayRouters();
   NodeContainer customerRouters = topologyReader.GetCustomerRouters();
   list<TopologyReader::Link> links = topologyReader.GetLinks();
 
-  topologyReader.SaveGraphviz (graph);
-  if (buildGraphvizGraph)
-    {
-      system (("neato -Tpdf \"" + graph + "\" > \"" + graph_pdf + "\"").c_str ());
-    }
+  topologyReader.SaveGraphviz(graph);
+  if (buildGraphvizGraph) {
+    system(("neato -Tpdf \"" + graph + "\" > \"" + graph_pdf + "\"").c_str());
+  }
 
-  topologyReader.SaveTopology (output);
+  topologyReader.SaveTopology(output);
 
   // Names::Clear ();
   // Simulator::Destroy ();
